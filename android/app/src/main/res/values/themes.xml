@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Inventa" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/dark_navy</item>
+        <item name="android:navigationBarColor">@color/charcoal_surface</item>
+        <item name="android:windowBackground">@color/dark_navy</item>
+    </style>
+</resources>

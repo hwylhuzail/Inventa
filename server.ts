@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 
 dotenv.config();
 
@@ -290,6 +290,7 @@ Synthesize 3 distinct, practical, innovative solutions with complete prototype r
       model: 'gemini-3.8-flash',
       contents: parts.length > 1 ? { parts } : promptText,
       config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: {
@@ -513,6 +514,7 @@ Return clean JSON with:
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: 'application/json'
       }
     });
@@ -604,6 +606,7 @@ Guiding Principles:
       model: 'gemini-3.8-flash',
       contents: validContents,
       config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         systemInstruction
       }
     });
