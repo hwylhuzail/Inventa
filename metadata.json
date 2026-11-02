@@ -1,0 +1,6 @@
+{
+  "name": "INVENTA",
+  "description": "AI-powered invention laboratory transforming real-world problems and observations into practical inventions, prototypes, and technologies.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
