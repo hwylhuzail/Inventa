@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -23,6 +22,30 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // Moved from your bottom defaultConfig block
+        buildConfigField(
+            "String",
+            "SUPABASE_URL",
+            "\"${System.getenv("SUPABASE_URL") ?: ""}\""
+        )
+        buildConfigField(
+            "String",
+            "SUPABASE_PUBLISHABLE_KEY",
+            "\"${System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: ""}\""
+        )
+    }
+
+    // --- NEW: SIGNING CONFIGURATION ---
+    signingConfigs {
+        create("release") {
+            // This points to the file the GitHub Action creates
+            storeFile = file("inventa-release.jks")
+            // These pull from the GitHub Secrets we set up
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
     }
 
     buildTypes {
@@ -33,6 +56,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // --- NEW: APPLY THE SIGNING CONFIG ---
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -48,19 +73,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    defaultConfig {
-        buildConfigField(
-            "String",
-            "SUPABASE_URL",
-            "\"${System.getenv("SUPABASE_URL") ?: ""}\""
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_PUBLISHABLE_KEY",
-            "\"${System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: ""}\""
-        )
     }
 }
 
