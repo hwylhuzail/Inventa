@@ -30,15 +30,17 @@ jobs:
           -keypass InventaPass123 \
           -dname "CN=Inventa, OU=App, O=Inventa, L=City, ST=State, C=US"
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x android/gradlew
-
     - name: Build Release APK
-      working-directory: ./android
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       run: |
+        cd android
+        # Generates the missing gradlew file using GitHub's installed Gradle
+        gradle wrapper
+        # Grants execution permission just in case
+        chmod +x gradlew
+        # Builds the APK
         ./gradlew assembleRelease \
           -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/inventa-release.jks \
           -Pandroid.injected.signing.store.password="InventaPass123" \
@@ -49,7 +51,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Inventa-Release-Bundle
-        # Upload both the APK and the Keystore file so you have them
         path: |
           android/app/build/outputs/apk/release/app-release.apk
           android/app/inventa-release.jks
