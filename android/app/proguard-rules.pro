@@ -1,11 +1,8 @@
 # ==========================================
-# INVENTA Android Proguard / R8 Configuration
+# INVENTA Proguard / R8 Configuration
 # ==========================================
-
 -keepattributes *Annotation*, InnerClasses, Signature, Exceptions
--keepclassmembers class * {
-    @androidx.room.* <methods>;
-}
+-dontwarn org.slf4j.**
 
 # --- ROOM DATABASE ---
 -keep class com.inventa.app.data.local.** { *; }
@@ -24,11 +21,8 @@
 # --- KTOR (Network Client) ---
 -keep class io.ktor.** { *; }
 -dontwarn io.ktor.**
--keepclassmembers class io.ktor.** { volatile <fields>; }
 
 # --- KOTLIN SERIALIZATION ---
--keepattributes *Annotation*, InnerClasses
--dontnote kotlinx.serialization.AnnotationsKt
 -keepclassmembers class kotlinx.serialization.json.** {
     *** Companion;
 }
@@ -41,11 +35,4 @@
 }
 -keepclasseswithmembers class com.inventa.app.** {
     kotlinx.serialization.KSerializer serializer(...);
-}
-
-# --- GENERAL ANDROID / KOTLIN ---
--keep class kotlin.Metadata { *; }
--dontwarn kotlin.**
--keepclassmembers class **$WhenMappings {
-    <fields>;
 }
