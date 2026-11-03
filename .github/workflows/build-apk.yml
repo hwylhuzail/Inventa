@@ -32,7 +32,6 @@ jobs:
           -keypass InventaPass123 \
           -dname "CN=Inventa, OU=App, O=Inventa, L=City, ST=State, C=US"
 
-    # --- NEW STEP: FORCE CLEAN MANIFEST ---
     - name: Force Fix AndroidManifest
       run: |
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
@@ -65,7 +64,14 @@ jobs:
             </application>
         </manifest>
         EOF
-        echo "Manifest successfully overwritten."
+
+    # --- NEW STEP: GENERATE PLACEHOLDER ICON ---
+    - name: Generate Placeholder Icon
+      run: |
+        mkdir -p android/app/src/main/res/mipmap-hdpi
+        # Create a basic 1x1 transparent PNG to satisfy the compiler
+        echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" | base64 -d > android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+        cp android/app/src/main/res/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
 
     - name: Build Release APK
       env:
