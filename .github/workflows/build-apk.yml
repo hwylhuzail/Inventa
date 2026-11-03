@@ -18,7 +18,6 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    # --- CHANGED TO 8.13 TO MATCH YOUR ANDROID PLUGIN ---
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
@@ -33,16 +32,49 @@ jobs:
           -keypass InventaPass123 \
           -dname "CN=Inventa, OU=App, O=Inventa, L=City, ST=State, C=US"
 
+    # --- NEW STEP: FORCE CLEAN MANIFEST ---
+    - name: Force Fix AndroidManifest
+      run: |
+        cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.microphone" android:required="false" />
+            <application
+                android:name=".InventaApp"
+                android:allowBackup="true"
+                android:usesCleartextTraffic="false"
+                android:icon="@mipmap/ic_launcher"
+                android:label="INVENTA"
+                android:roundIcon="@mipmap/ic_launcher_round"
+                android:supportsRtl="true"
+                android:theme="@android:style/Theme.Material.NoActionBar">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:windowSoftInputMode="adjustResize">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+        echo "Manifest successfully overwritten."
+
     - name: Build Release APK
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       run: |
         cd android
-        # Use 8.13 here as well
         gradle wrapper --gradle-version 8.13
         chmod +x gradlew
-        # Builds the APK
         ./gradlew assembleRelease \
           -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/inventa-release.jks \
           -Pandroid.injected.signing.store.password="InventaPass123" \
