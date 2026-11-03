@@ -1,8 +1,6 @@
-name: Build Signed Release APK
+name: Build and Package APK
 
 on:
-  push:
-    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
@@ -23,17 +21,14 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    - name: Decode Keystore
-      env:
-        ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
+    - name: Generate Keystore on the fly
       run: |
-        echo "$ENCODED_STRING" | tr -cd 'A-Za-z0-9+/=' | base64 --decode > android/app/inventa-release.jks
-        
-        if [ ! -s android/app/inventa-release.jks ]; then
-          echo "ERROR: Keystore file is empty. The secret is corrupted."
-          exit 1
-        fi
-        echo "Keystore successfully decoded!"
+        keytool -genkey -v -keystore android/app/inventa-release.jks \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias inventa \
+          -storepass InventaPass123 \
+          -keypass InventaPass123 \
+          -dname "CN=Inventa, OU=App, O=Inventa, L=City, ST=State, C=US"
 
     - name: Grant execute permission for gradlew
       run: chmod +x android/gradlew
@@ -43,18 +38,18 @@ jobs:
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
         ./gradlew assembleRelease \
           -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/inventa-release.jks \
-          -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-          -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-          -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          -Pandroid.injected.signing.store.password="InventaPass123" \
+          -Pandroid.injected.signing.key.alias="inventa" \
+          -Pandroid.injected.signing.key.password="InventaPass123"
 
-    - name: Upload APK Artifact
+    - name: Upload APK and Keystore
       uses: actions/upload-artifact@v4
       with:
-        name: Inventa-Release-APK
-        path: android/app/build/outputs/apk/release/app-release.apk
+        name: Inventa-Release-Bundle
+        # Upload both the APK and the Keystore file so you have them
+        path: |
+          android/app/build/outputs/apk/release/app-release.apk
+          android/app/inventa-release.jks
