@@ -22,26 +22,24 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        
-        // Moved from your bottom defaultConfig block
+
+        // Added fallback placeholders so the build doesn't fail if secrets are missing
         buildConfigField(
             "String",
             "SUPABASE_URL",
-            "\"${System.getenv("SUPABASE_URL") ?: ""}\""
+            "\"${System.getenv("SUPABASE_URL") ?: "https://placeholder.supabase.co"}\""
         )
         buildConfigField(
             "String",
             "SUPABASE_PUBLISHABLE_KEY",
-            "\"${System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: ""}\""
+            "\"${System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: "placeholder_key"}\""
         )
     }
 
-    // --- NEW: SIGNING CONFIGURATION ---
+    // --- SIGNING CONFIGURATION ---
     signingConfigs {
         create("release") {
-            // This points to the file the GitHub Action creates
             storeFile = file("inventa-release.jks")
-            // These pull from the GitHub Secrets we set up
             storePassword = System.getenv("KEYSTORE_PASSWORD")
             keyAlias = System.getenv("KEY_ALIAS")
             keyPassword = System.getenv("KEY_PASSWORD")
@@ -56,7 +54,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // --- NEW: APPLY THE SIGNING CONFIG ---
+            // APPLY THE SIGNING CONFIG
             signingConfig = signingConfigs.getByName("release")
         }
     }
