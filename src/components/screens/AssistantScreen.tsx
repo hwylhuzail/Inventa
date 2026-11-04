@@ -93,7 +93,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({
       const errorMsg: ChatMessage = {
         id: 'msg-err-' + Date.now(),
         role: 'assistant',
-        content: `Notice: ${err.message || 'Assistant temporarily offline'}. Consider checking physical tolerance limits directly in the Prototype Studio.`,
+        content: `INVENTA Copilot is temporarily unavailable. ${err.message || 'Please try again shortly.'}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, errorMsg]);

@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.8-flash';
 
 function jsonResponse(res: any, status: number, body: any) {
   res.status(status).json(body);

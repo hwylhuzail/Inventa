@@ -53,7 +53,7 @@ export const GeneratingScreen: React.FC<GeneratingScreenProps> = ({ problem }) =
       <div className="max-w-xs mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-[11px] font-mono font-bold">
           <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-          <span>GEMINI 2.5 FLASH SYNTHESIZER</span>
+          <span>GEMINI 3.8 FLASH SYNTHESIZER</span>
         </div>
 
         <h2 className="text-xl font-extrabold text-white tracking-tight">
