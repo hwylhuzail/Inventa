@@ -18,20 +18,20 @@ interface InventionDao {
     fun getInventionsByCategory(category: String): Flow<List<InventionEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertInvention(invention: InventionEntity)
+    suspend fun insertInvention(invention: InventionEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(inventions: List<InventionEntity>)
+    suspend fun insertAll(inventions: List<InventionEntity>): List<Long>
 
     @Update
-    suspend fun updateInvention(invention: InventionEntity)
+    suspend fun updateInvention(invention: InventionEntity): Int
 
     @Query("DELETE FROM inventions WHERE id = :id")
-    suspend fun deleteInventionById(id: String)
+    suspend fun deleteInventionById(id: String): Int
 
     @Query("UPDATE inventions SET isFavorite = NOT isFavorite WHERE id = :id")
-    suspend fun toggleFavorite(id: String)
+    suspend fun toggleFavorite(id: String): Int
 
     @Query("UPDATE inventions SET progressPercent = :progress WHERE id = :id")
-    suspend fun updateProgress(id: String, progress: Int)
+    suspend fun updateProgress(id: String, progress: Int): Int
 }
