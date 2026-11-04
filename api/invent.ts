@@ -146,12 +146,21 @@ function extractJson(rawText: string) {
 }
 
 export default async function handler(req: any, res: any) {
+  const endpoint = String(req.query.endpoint || '').replace(/^\/+/, '').split(/[/?]/)[0] || 'generate';
+  if (req.method === 'GET' && endpoint === 'status') {
+    jsonResponse(res, 200, {
+      groqConfigured: !!process.env.GROQ_API_KEY,
+      geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+      groqModel: GROQ_MODEL,
+      geminiModel: GEMINI_MODEL
+    });
+    return;
+  }
   if (req.method !== 'POST') {
     jsonResponse(res, 405, { error: 'Method not allowed' });
     return;
   }
 
-  const endpoint = String(req.query.endpoint || '').replace(/^\/+/, '').split(/[/?]/)[0] || 'generate';
   const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
