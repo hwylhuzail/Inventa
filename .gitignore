@@ -2,6 +2,10 @@ node_modules/
 build/
 dist/
 coverage/
+android/.gradle/
+android/local.properties
+android/**/*.jks
+android/**/*.keystore
 .DS_Store
 *.log
 .env*
