@@ -38,19 +38,21 @@ class GeminiInventionService(private val apiKey: String) {
 
             val response = generativeModel.generateContent(prompt)
             val jsonText = response.text?.trim() ?: throw IllegalStateException("Empty response from AI")
-            
-            val cleanJson = if (jsonText.startsWith("```json")) {
-                jsonText.removePrefix("```json").removeSuffix("```").trim()
-            } else if (jsonText.startsWith("```")) {
-                jsonText.removePrefix("```").removeSuffix("```").trim()
-            } else jsonText
+
+            val cleanJson = when {
+                jsonText.startsWith("```json") -> jsonText.removePrefix("```json").removeSuffix("```").trim()
+                jsonText.startsWith("```") -> jsonText.removePrefix("```").removeSuffix("```").trim()
+                else -> jsonText
+            }
 
             val jsonArray = JSONArray(cleanJson)
             val results = mutableListOf<InventionConceptDto>()
+
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
                 results.add(parseDto(obj))
             }
+
             Result.success(results)
         } catch (e: Exception) {
             Result.failure(e)
