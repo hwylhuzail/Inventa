@@ -148,8 +148,31 @@ function extractJson(rawText: string) {
 export default async function handler(req: any, res: any) {
   const endpoint = String(req.query.endpoint || '').replace(/^\/+/, '').split(/[/?]/)[0] || 'generate';
   if (req.method === 'GET' && endpoint === 'status') {
+    let groqStatus = 'not-tested';
+    let groqError = '';
+    if (process.env.GROQ_API_KEY) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        const response = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: GROQ_MODEL, messages: [{ role: 'user', content: 'Reply with OK only.' }], max_tokens: 5 }),
+          signal: controller.signal
+        }).finally(() => clearTimeout(timeout));
+        groqStatus = response.ok ? 'working' : `http-${response.status}`;
+        if (!response.ok) groqError = String(await response.text()).slice(0, 300);
+      } catch (error: any) {
+        groqStatus = 'error';
+        groqError = String(error?.message || error?.toString?.() || '').slice(0, 300);
+      }
+    } else {
+      groqStatus = 'missing-key';
+    }
     jsonResponse(res, 200, {
       groqConfigured: !!process.env.GROQ_API_KEY,
+      groqStatus,
+      groqError,
       geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
       groqModel: GROQ_MODEL,
       geminiModel: GEMINI_MODEL
