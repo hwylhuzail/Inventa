@@ -1,12 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 
 const GEMINI_MODEL = 'gemini-1.5-flash-8b';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_PREFERRED_MODEL = 'llama-3.1-8b-instant';
+const GROQ_FALLBACK_MODELS = ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'mixtral-8x7b-32768'];
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const responseCache = new Map<string, { value: any; expiresAt: number }>();
 let requestQueue = Promise.resolve();
 let lastProviderRequestAt = 0;
+let discoveredGroqModel: string | null = null;
 
 function jsonResponse(res: any, status: number, body: any) {
   res.status(status).json(body);
@@ -23,9 +25,29 @@ async function queueProviderRequest<T>(operation: () => Promise<T>): Promise<T> 
   return run;
 }
 
+async function getGroqModel(apiKey: string): Promise<string> {
+  if (discoveredGroqModel) return discoveredGroqModel;
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${apiKey}` }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const ids = Array.isArray(data?.data) ? data.data.map((model: any) => String(model.id)) : [];
+      const candidate = [GROQ_PREFERRED_MODEL, ...GROQ_FALLBACK_MODELS].find(id => ids.includes(id));
+      if (candidate) {
+        discoveredGroqModel = candidate;
+        return candidate;
+      }
+    }
+  } catch {}
+  return GROQ_PREFERRED_MODEL;
+}
+
 async function callGroq(messages: Array<{ role: string; content: string }>, jsonResponse = false) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY is not configured');
+  const model = await getGroqModel(apiKey);
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -41,7 +63,7 @@ async function callGroq(messages: Array<{ role: string; content: string }>, json
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: GROQ_MODEL,
+            model: model,
             messages,
             temperature: 0.7,
             response_format: jsonResponse ? { type: 'json_object' } : undefined
@@ -157,7 +179,7 @@ export default async function handler(req: any, res: any) {
         const response = await fetch(GROQ_URL, {
           method: 'POST',
           headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: GROQ_MODEL, messages: [{ role: 'user', content: 'Reply with OK only.' }], max_tokens: 5 }),
+          body: JSON.stringify({ model: await getGroqModel(process.env.GROQ_API_KEY), messages: [{ role: 'user', content: 'Reply with OK only.' }], max_tokens: 5 }),
           signal: controller.signal
         }).finally(() => clearTimeout(timeout));
         groqStatus = response.ok ? 'working' : `http-${response.status}`;
@@ -174,7 +196,7 @@ export default async function handler(req: any, res: any) {
       groqStatus,
       groqError,
       geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
-      groqModel: GROQ_MODEL,
+      groqModel: discoveredGroqModel || GROQ_PREFERRED_MODEL,
       geminiModel: GEMINI_MODEL
     });
     return;
@@ -201,7 +223,7 @@ export default async function handler(req: any, res: any) {
       jsonResponse(res, 200, {
         groqConfigured: !!groqKey,
         geminiConfigured: !!geminiKey,
-        groqModel: GROQ_MODEL,
+        groqModel: discoveredGroqModel || GROQ_PREFERRED_MODEL,
         geminiModel: GEMINI_MODEL
       });
       return;
