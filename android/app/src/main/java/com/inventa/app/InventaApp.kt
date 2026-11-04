@@ -1,4 +1,3 @@
-
 package com.inventa.app
 
 import android.app.Application
@@ -13,10 +12,6 @@ class InventaApp : Application() {
         InventaDatabase.getDatabase(this)
     }
 
-    val repository by lazy {
-        InventionRepository(database.inventionDao())
-    }
-
     val supabaseClient: SupabaseClient? by lazy {
         val url = BuildConfig.SUPABASE_URL
         val key = BuildConfig.SUPABASE_PUBLISHABLE_KEY
@@ -29,6 +24,13 @@ class InventaApp : Application() {
         } else {
             null
         }
+    }
+
+    val repository by lazy {
+        InventionRepository(
+            inventionDao = database.inventionDao(),
+            supabaseClient = supabaseClient
+        )
     }
 
     override fun onCreate() {
