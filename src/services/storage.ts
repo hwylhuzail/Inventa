@@ -6,6 +6,8 @@ const STORAGE_KEY_PROFILE = 'inventa_user_profile_v1';
 const STORAGE_KEY_CHAT = 'inventa_assistant_chat_v1';
 const STORAGE_KEY_THEME = 'inventa_theme_mode';
 const STORAGE_KEY_FRAME = 'inventa_device_frame_mode';
+const STORAGE_KEY_TERMS = 'inventa_terms_accepted_v1';
+const STORAGE_KEY_ACCOUNT_SESSION = 'inventa_account_session_v1';
 
 const DEFAULT_PROFILE: UserProfile = {
   id: 'usr-inventor-local',
@@ -120,6 +122,34 @@ export const StorageService = {
     } catch (e) {
       console.error('Failed to save chat history:', e);
     }
+  },
+  rewindChat(messageId: string): ChatMessage[] {
+    const history = this.getChatHistory();
+    const index = history.findIndex((message) => message.id === messageId);
+    if (index < 0) return history;
+    const rewinded = history.slice(0, index);
+    this.saveChatHistory(rewinded);
+    return rewinded;
+  },
+
+  hasAcceptedTerms(): boolean {
+    return localStorage.getItem(STORAGE_KEY_TERMS) === 'true';
+  },
+  acceptTerms(): void {
+    localStorage.setItem(STORAGE_KEY_TERMS, 'true');
+  },
+  getAccountSession(): { email: string; displayName: string } | null {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_ACCOUNT_SESSION) || 'null');
+    } catch {
+      return null;
+    }
+  },
+  saveAccountSession(account: { email: string; displayName: string }): void {
+    localStorage.setItem(STORAGE_KEY_ACCOUNT_SESSION, JSON.stringify(account));
+  },
+  clearAccountSession(): void {
+    localStorage.removeItem(STORAGE_KEY_ACCOUNT_SESSION);
   },
 
   // UI preferences

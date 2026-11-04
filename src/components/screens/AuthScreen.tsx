@@ -1,163 +1,132 @@
 import React, { useState } from 'react';
 import { InventaLogo } from '../common/InventaLogo';
+import { StorageService } from '../../services/storage';
 import { UserProfile } from '../../types/invention';
-import { ShieldCheck, Lock, CheckCircle2, UserCheck, ArrowRight } from 'lucide-react';
+import { ArrowRight, Lock, ShieldCheck, UserCheck } from 'lucide-react';
 
 interface AuthScreenProps {
   onSuccess: (profile: UserProfile) => void;
   onContinueGuest: () => void;
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({
-  onSuccess,
-  onContinueGuest
-}) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onContinueGuest }) => {
+  const [activeTab, setActiveTab] = useState<'signup' | 'signin' | 'guest'>('signup');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [consentGiven, setConsentGiven] = useState(true);
-  const [activeTab, setActiveTab] = useState<'signin' | 'guest'>('guest');
+  const [password, setPassword] = useState('');
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
+  const acceptAndContinue = (profile?: UserProfile) => {
+    if (!consentGiven) {
+      setError('Please agree to the Terms of Use and Privacy Policy to continue.');
+      return;
+    }
+    StorageService.acceptTerms();
+    if (profile) onSuccess(profile);
+    else onContinueGuest();
+  };
+
+  const handleSignup = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email.trim() || password.length < 6) {
+      setError('Enter an email and a password with at least 6 characters.');
+      return;
+    }
     const profile: UserProfile = {
       id: 'usr-' + Date.now(),
       displayName: displayName.trim() || 'Laboratory Inventor',
-      email: email.trim() || 'inventor@inventa.lab',
-      bio: 'Independent maker focusing on practical global solutions.',
+      email: email.trim(),
+      bio: 'Independent inventor focused on practical solutions.',
       tier: 'Free',
-      creationsCount: 1,
+      creationsCount: 0,
       activePrototypesCount: 0,
       completedTasksCount: 0,
       cloudAiConsent: consentGiven,
       joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     };
-    onSuccess(profile);
+    StorageService.saveAccountSession({ email: email.trim(), displayName: profile.displayName });
+    acceptAndContinue(profile);
   };
 
-  return (
-    <div className="flex-1 flex flex-col justify-between p-6 bg-[#0B0F19] text-slate-100">
-      <div className="flex flex-col items-center text-center pt-2">
-        <InventaLogo size="md" className="mb-4" />
-        <h2 className="text-xl font-bold text-white tracking-tight">
-          Invention Laboratory Access
-        </h2>
-        <p className="text-xs text-slate-400 mt-1 max-w-xs">
-          Privacy-first architecture. Your invention ideas are stored in your device's private encrypted vault.
-        </p>
+  const handleSignin = (event: React.FormEvent) => {
+    event.preventDefault();
+    const session = StorageService.getAccountSession();
+    if (!session || session.email.toLowerCase() !== email.trim().toLowerCase()) {
+      setError('No local account matches this email. Create a Sign Up profile first.');
+      return;
+    }
+    const profile = StorageService.getProfile();
+    acceptAndContinue({ ...profile, displayName: session.displayName, email: session.email });
+  };
 
-        {/* Auth mode selector */}
-        <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-xl mt-6 w-full max-w-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('guest')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'guest' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Local Guest Vault
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('signin')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'signin' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Create Profile
-          </button>
-        </div>
+  const policyLinks = (
+    <p className="text-[11px] text-slate-400 leading-relaxed text-center">
+      I agree to the{' '}
+      <a href="/terms-of-use.html" className="text-cyan-400 underline" target="_blank" rel="noreferrer">Terms of Use</a>
+      {' '}and{' '}
+      <a href="/privacy-policy.html" className="text-cyan-400 underline" target="_blank" rel="noreferrer">Privacy Policy</a>
+      .
+    </p>
+  );
+
+  return (
+    <div className="flex-1 flex flex-col p-4 sm:p-6 bg-[#0B0F19] text-slate-100 overflow-y-auto">
+      <div className="flex flex-col items-center text-center">
+        <InventaLogo size="md" className="mb-4" />
+        <h1 className="text-2xl font-black text-white">Welcome to INVENTA</h1>
+        <p className="text-xs text-slate-400 mt-2 max-w-md">Transform real problems into practical inventions with Gemini engineering intelligence, prototype roadmaps, and a private project vault.</p>
       </div>
 
-      <div className="max-w-xs w-full mx-auto my-auto">
-        {activeTab === 'guest' ? (
-          <div className="flex flex-col gap-4 text-center">
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-left">
-              <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 mb-2">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Zero Account Required</span>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Work completely anonymously. Inventions, custom modifications, prototype checklists, and notes will remain securely stored on your local device.
-              </p>
+      <div className="grid grid-cols-3 gap-2 max-w-md mx-auto w-full mt-5">
+        {(['signup', 'signin', 'guest'] as const).map((tab) => (
+          <button key={tab} type="button" onClick={() => { setActiveTab(tab); setError(''); }} className={`py-2 rounded-lg text-xs font-semibold ${activeTab === tab ? 'bg-violet-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}>
+            {tab === 'signup' ? 'Sign Up' : tab === 'signin' ? 'Sign In' : 'Guest'}
+          </button>
+        ))}
+      </div>
+
+      <div className="max-w-md w-full mx-auto my-auto py-5">
+        {activeTab === 'guest' && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+              <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold mb-2"><UserCheck className="w-4 h-4" />Private guest laboratory</div>
+              <p className="text-xs text-slate-400">No account is required. Inventions and Copilot conversations remain stored on this device.</p>
             </div>
-
-            {/* Cloud AI Consent Toggle */}
-            <label className="flex items-start gap-2.5 text-left text-xs text-slate-300 cursor-pointer p-2 rounded-lg hover:bg-slate-900/50">
-              <input
-                type="checkbox"
-                checked={consentGiven}
-                onChange={(e) => setConsentGiven(e.target.checked)}
-                className="mt-0.5 rounded border-slate-700 text-violet-600 focus:ring-violet-500"
-              />
-              <span className="text-[11px] text-slate-400 leading-tight">
-                I consent to sending problem descriptions to cloud AI (Gemini 3.8 Flash) for synthesis. No personal identity data is attached.
-              </span>
-            </label>
-
-            <button
-              onClick={onContinueGuest}
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-violet-950/40 hover:brightness-110 active:scale-[0.98] transition-all"
-            >
-              <UserCheck className="w-4 h-4" />
-              <span>Enter as Guest Maker</span>
-            </button>
           </div>
-        ) : (
-          <form onSubmit={handleRegister} className="flex flex-col gap-3">
+        )}
+
+        {(activeTab === 'signup' || activeTab === 'signin') && (
+          <form onSubmit={activeTab === 'signup' ? handleSignup : handleSignin} className="space-y-3">
+            {activeTab === 'signup' && (
+              <div>
+                <label className="block text-xs text-slate-300 mb-1">Display name</label>
+                <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} className="w-full px-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="Your name" />
+              </div>
+            )}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Inventor Display Name
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Maria Chen, P.E."
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
+              <label className="block text-xs text-slate-300 mb-1">Email</label>
+              <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full px-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="inventor@example.com" />
             </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Email Address (Optional)
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="inventor@example.com"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
-            </div>
-
-            <label className="flex items-start gap-2 text-left text-xs text-slate-300 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={consentGiven}
-                onChange={(e) => setConsentGiven(e.target.checked)}
-                className="mt-0.5 rounded border-slate-700 text-violet-600 focus:ring-violet-500"
-              />
-              <span className="text-[11px] text-slate-400 leading-tight">
-                Enable secure AI cloud synthesis for problem briefs.
-              </span>
-            </label>
-
-            <button
-              type="submit"
-              className="w-full h-11 mt-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-violet-950/40 hover:brightness-110 active:scale-[0.98] transition-all"
-            >
-              <span>Save Profile & Start</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {activeTab === 'signup' && (
+              <div>
+                <label className="block text-xs text-slate-300 mb-1">Password</label>
+                <div className="relative"><Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" /><input required type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} className="w-full pl-9 pr-3 py-3 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white" placeholder="At least 6 characters" /></div>
+              </div>
+            )}
+            <button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold flex items-center justify-center gap-2">{activeTab === 'signup' ? 'Create Account' : 'Sign In'}<ArrowRight className="w-4 h-4" /></button>
           </form>
         )}
+
+        <label className="flex items-start gap-2.5 mt-4 p-3 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer">
+          <input type="checkbox" checked={consentGiven} onChange={(event) => { setConsentGiven(event.target.checked); setError(''); }} className="mt-1" />
+          {policyLinks}
+        </label>
+        {error && <p className="text-xs text-rose-400 text-center mt-3">{error}</p>}
+        {activeTab === 'guest' && <button onClick={() => acceptAndContinue()} className="w-full h-12 mt-4 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white text-sm font-bold">Enter Laboratory</button>}
       </div>
 
-      <div className="text-center pt-4 border-t border-slate-800/80">
-        <p className="text-[11px] text-slate-400">
-          Strict Zero-Sale Policy · 100% User Owned IP
-        </p>
-      </div>
+      <div className="text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />Your invention data remains under your control.</div>
     </div>
   );
 };

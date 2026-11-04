@@ -37,12 +37,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           The worldwide AI laboratory transforming real-world problems and observations into practical inventions, prototypes, and technologies.
         </p>
 
-        <div className="w-full flex items-center justify-center gap-2 text-xs text-slate-400 mb-2">
-          <span>Worldwide Access</span>
+        <div className="w-full grid grid-cols-2 gap-2 text-left mt-2 mb-1">
+          <div className="p-3 rounded-xl border border-white/[0.08] bg-slate-900/60"><p className="text-xs font-bold text-white">3 AI Concepts</p><p className="text-[10px] text-slate-400 mt-1">Problem-specific invention synthesis</p></div>
+          <div className="p-3 rounded-xl border border-white/[0.08] bg-slate-900/60"><p className="text-xs font-bold text-white">Prototype Studio</p><p className="text-[10px] text-slate-400 mt-1">Materials, steps, costs, safety</p></div>
+          <div className="p-3 rounded-xl border border-white/[0.08] bg-slate-900/60"><p className="text-xs font-bold text-white">Engineering Copilot</p><p className="text-[10px] text-slate-400 mt-1">Multi-turn grounded guidance</p></div>
+          <div className="p-3 rounded-xl border border-white/[0.08] bg-slate-900/60"><p className="text-xs font-bold text-white">Private Vault</p><p className="text-[10px] text-slate-400 mt-1">Local projects and chat history</p></div>
+        </div>
+        <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400 mt-3">
+          <a href="/privacy-policy.html" target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">Privacy Policy</a>
           <span aria-hidden="true">·</span>
-          <span>Open Prototyping</span>
-          <span aria-hidden="true">·</span>
-          <span>Responsible AI</span>
+          <a href="/terms-of-use.html" target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">Terms of Use</a>
         </div>
       </div>
 

@@ -34,8 +34,12 @@ import { AndroidCodeViewerScreen } from './components/screens/AndroidCodeViewerS
 
 export default function App() {
   // Screen state & navigation back-stack
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
-  const [screenHistory, setScreenHistory] = useState<AppScreen[]>(['home']);
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>(() =>
+    StorageService.hasAcceptedTerms() ? 'home' : 'splash'
+  );
+  const [screenHistory, setScreenHistory] = useState<AppScreen[]>(() =>
+    StorageService.hasAcceptedTerms() ? ['home'] : ['splash']
+  );
 
   // Data state
   const [inventions, setInventions] = useState<Invention[]>(() => StorageService.getInventions());
@@ -259,14 +263,14 @@ export default function App() {
         {currentScreen === 'splash' && (
           <SplashScreen
             onStart={() => navigateTo('onboarding')}
-            onExploreDirectly={() => navigateTo('home')}
+            onExploreDirectly={() => navigateTo('auth')}
           />
         )}
 
         {currentScreen === 'onboarding' && (
           <OnboardingScreen
             onComplete={() => navigateTo('auth')}
-            onSkip={() => navigateTo('home')}
+            onSkip={() => navigateTo('auth')}
           />
         )}
 

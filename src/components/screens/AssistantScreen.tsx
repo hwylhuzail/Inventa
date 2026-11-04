@@ -102,6 +102,16 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({
     }
   };
 
+  const rewindTo = (messageId: string) => {
+    const rewinded = StorageService.rewindChat(messageId);
+    setMessages(rewinded.length > 0 ? rewinded : [{
+      id: 'msg-reset-' + Date.now(),
+      role: 'assistant',
+      content: 'Conversation rewound. What should we change in this direction?',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }]);
+  };
+
   const clearChat = () => {
     const initial: ChatMessage = {
       id: 'msg-reset',
@@ -167,7 +177,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
-        {messages.map((m) => (
+        {messages.map((m, messageIndex) => (
           <div
             key={m.id}
             className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
@@ -180,12 +190,19 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({
               }`}
             >
               <div className="whitespace-pre-line font-normal">{m.content}</div>
-              <div
-                className={`text-[9px] font-mono ${
-                  m.role === 'user' ? 'text-violet-200' : 'text-slate-400'
-                } text-right`}
-              >
-                {m.timestamp}
+              <div className="flex items-center justify-end gap-2">
+                {messageIndex > 0 && (
+                  <button onClick={() => rewindTo(m.id)} className="text-[9px] text-slate-400 hover:text-cyan-300" title="Rewind conversation to this message">
+                    Rewind
+                  </button>
+                )}
+                <div
+                  className={`text-[9px] font-mono ${
+                    m.role === 'user' ? 'text-violet-200' : 'text-slate-400'
+                  } text-right`}
+                >
+                  {m.timestamp}
+                </div>
               </div>
             </div>
           </div>
