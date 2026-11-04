@@ -1,8 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
 const GEMINI_MODEL = 'gemini-1.5-flash-8b';
-const GROQ_PREFERRED_MODEL = 'llama-3.1-8b-instant';
-const GROQ_FALLBACK_MODELS = ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'mixtral-8x7b-32768'];
+const GROQ_PREFERRED_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'llama-3.1-8b-instant', 'llama3-70b-8192', 'mixtral-8x7b-32768'];
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const responseCache = new Map<string, { value: any; expiresAt: number }>();
@@ -47,9 +47,10 @@ async function getGroqModel(apiKey: string): Promise<string> {
 async function callGroq(messages: Array<{ role: string; content: string }>, jsonResponse = false) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY is not configured');
-  const model = await getGroqModel(apiKey);
+  const discovered = await getGroqModel(apiKey);
+  const models = [discovered, GROQ_PREFERRED_MODEL, ...GROQ_FALLBACK_MODELS].filter((model, index, all) => model && all.indexOf(model) === index);
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (const model of models) {
     try {
       return await queueProviderRequest(async () => {
         const controller = new AbortController();
@@ -83,12 +84,13 @@ async function callGroq(messages: Array<{ role: string; content: string }>, json
         return data?.choices?.[0]?.message?.content || '';
       });
     } catch (error: any) {
-      if (error?.status !== 429 && !/429|quota|rate/i.test(String(error?.message || ''))) throw error;
-      if (attempt === 2) throw error;
+      const text = String(error?.message || error?.toString?.() || '');
+      if (/model_not_found|does not exist|do not have access/i.test(text)) continue;
+      if (error?.status !== 429 && !/429|quota|rate/i.test(text)) throw error;
       await new Promise(resolve => setTimeout(resolve, 30000));
     }
   }
-  throw new Error('Groq is currently rate limited');
+  throw new Error('Groq models are unavailable or rate limited');
 }
 
 async function getSupabaseCache(key: string): Promise<any | null> {
