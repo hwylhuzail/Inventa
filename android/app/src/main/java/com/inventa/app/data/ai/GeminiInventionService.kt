@@ -17,7 +17,7 @@ class GeminiInventionService(
 ) {
 
     companion object {
-        private const val MODEL = "gemini-3.8-flash"
+        private const val MODEL = "gemini-2.5-flash"
 
         private const val BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta"

@@ -189,8 +189,8 @@ export default function App() {
       navigateTo('results');
     } catch (err: any) {
       console.error('Synthesis error:', err);
-      showToast('Offline fallback synthesis engaged');
-      navigateTo('home');
+      showToast(err.message || 'AI synthesis failed. Check your connection and try again.');
+      navigateTo('create');
     }
   };
 
