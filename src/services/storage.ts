@@ -138,7 +138,7 @@ export const StorageService = {
 
   getDeviceFrameMode(): boolean {
     const val = localStorage.getItem(STORAGE_KEY_FRAME);
-    return val === null ? true : val === 'true'; // default to true for native Android look
+    return val === null ? false : val === 'true';
   },
 
   setDeviceFrameMode(enabled: boolean): void {
