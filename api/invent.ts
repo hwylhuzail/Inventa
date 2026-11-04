@@ -172,8 +172,12 @@ Return only valid JSON with: refinementTitle, summaryOfChanges, revisedMaterials
     jsonResponse(res, 404, { error: 'Unknown INVENTA AI endpoint.' });
   } catch (error: any) {
     console.error('Vercel Gemini error:', error);
-    jsonResponse(res, 502, {
-      error: error?.message || 'The Gemini AI service could not complete this request.'
-    });
+    const rawMessage = String(error?.message || error?.toString?.() || '');
+    const unavailable = /503|UNAVAILABLE|high demand|temporarily unavailable/i.test(rawMessage);
+    const status = unavailable ? 503 : 502;
+    const message = unavailable
+      ? 'Gemini is experiencing high demand right now. Please try again shortly.'
+      : rawMessage || 'The Gemini AI service could not complete this request.';
+    jsonResponse(res, status, { error: message });
   }
 }

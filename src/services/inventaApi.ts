@@ -1,5 +1,17 @@
 import { Invention, InventionCategory, InventionType, ComplexityLevel, RefinementResult } from '../types/invention';
 
+function readableApiError(payload: any, fallback: string): string {
+  if (!payload?.error) return fallback;
+  const raw = typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error);
+  try {
+    const parsed = JSON.parse(raw);
+    const providerMessage = parsed?.error?.message;
+    if (providerMessage) return providerMessage;
+  } catch {}
+  if (typeof payload.error === 'string' && payload.error.length < 300) return payload.error;
+  return fallback;
+}
+
 export interface GenerateInventionsParams {
   problem: string;
   category: InventionCategory;
@@ -18,7 +30,7 @@ export const InventaApi = {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to generate inventions (${response.status})`);
+      throw new Error(readableApiError(err, `Failed to generate inventions (${response.status})`));
     }
 
     return response.json();
@@ -37,7 +49,7 @@ export const InventaApi = {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to refine invention (${response.status})`);
+      throw new Error(readableApiError(err, `Failed to refine invention (${response.status})`));
     }
 
     return response.json();
@@ -55,7 +67,7 @@ export const InventaApi = {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || `Failed to connect with AI assistant (${response.status})`);
+      throw new Error(readableApiError(err, `Failed to connect with AI assistant (${response.status})`));
     }
 
     return response.json();
