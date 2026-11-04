@@ -30,7 +30,11 @@ async function callGroq(messages: Array<{ role: string; content: string }>, json
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await queueProviderRequest(async () => {
-        const response = await fetch(GROQ_URL, {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        let response: Response;
+        try {
+          response = await fetch(GROQ_URL, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -41,8 +45,12 @@ async function callGroq(messages: Array<{ role: string; content: string }>, json
             messages,
             temperature: 0.7,
             response_format: jsonResponse ? { type: 'json_object' } : undefined
-          })
+          }),
+          signal: controller.signal
         });
+        } finally {
+          clearTimeout(timeout);
+        }
         if (!response.ok) {
           const text = await response.text();
           const error = new Error(text || `Groq request failed (${response.status})`);
@@ -156,6 +164,16 @@ export default async function handler(req: any, res: any) {
 
   try {
     const ai = geminiKey ? new GoogleGenAI({ apiKey: geminiKey }) : null;
+
+    if (endpoint === 'status') {
+      jsonResponse(res, 200, {
+        groqConfigured: !!groqKey,
+        geminiConfigured: !!geminiKey,
+        groqModel: GROQ_MODEL,
+        geminiModel: GEMINI_MODEL
+      });
+      return;
+    }
 
     if (endpoint === 'generate') {
       const { problem, category, inventionType, complexity, imageDataUrl } = req.body || {};
@@ -325,7 +343,7 @@ Return only valid JSON with: refinementTitle, summaryOfChanges, revisedMaterials
             jsonResponse(res, 200, result);
           } catch {
             const reply = localEngineeringFallback(lastUser);
-            const result = { reply, isGeneratedByAi: false, provider: 'local', notice: 'The AI providers are temporarily unavailable; showing INVENTA engineering guidance.' };
+            const result = { reply, isGeneratedByAi: false, provider: 'local', notice: 'Live AI capacity is temporarily unavailable. Showing INVENTA engineering guidance.' };
             responseCache.set(cacheKey, { value: result, expiresAt: Date.now() + CACHE_TTL_MS });
             await setSupabaseCache(cacheKey, result);
             jsonResponse(res, 200, result);
