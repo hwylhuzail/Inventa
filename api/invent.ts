@@ -1,9 +1,91 @@
 import { GoogleGenAI } from '@google/genai';
 
-const MODEL = 'gemini-3.8-flash';
+const GEMINI_MODEL = 'gemini-1.5-flash-8b';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const responseCache = new Map<string, { value: any; expiresAt: number }>();
+let requestQueue = Promise.resolve();
+let lastProviderRequestAt = 0;
 
 function jsonResponse(res: any, status: number, body: any) {
   res.status(status).json(body);
+}
+
+async function queueProviderRequest<T>(operation: () => Promise<T>): Promise<T> {
+  const run = requestQueue.then(async () => {
+    const elapsed = Date.now() - lastProviderRequestAt;
+    if (elapsed < 2500) await new Promise(resolve => setTimeout(resolve, 2500 - elapsed));
+    lastProviderRequestAt = Date.now();
+    return operation();
+  });
+  requestQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+async function callGroq(messages: Array<{ role: string; content: string }>, jsonResponse = false) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY is not configured');
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await queueProviderRequest(async () => {
+        const response = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: GROQ_MODEL,
+            messages,
+            temperature: 0.7,
+            response_format: jsonResponse ? { type: 'json_object' } : undefined
+          })
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          const error = new Error(text || `Groq request failed (${response.status})`);
+          (error as any).status = response.status;
+          throw error;
+        }
+        const data = await response.json();
+        return data?.choices?.[0]?.message?.content || '';
+      });
+    } catch (error: any) {
+      if (error?.status !== 429 && !/429|quota|rate/i.test(String(error?.message || ''))) throw error;
+      if (attempt === 2) throw error;
+      await new Promise(resolve => setTimeout(resolve, 30000));
+    }
+  }
+  throw new Error('Groq is currently rate limited');
+}
+
+async function getSupabaseCache(key: string): Promise<any | null> {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
+  try {
+    const response = await fetch(`${url}/rest/v1/inventa_ai_cache?cache_key=eq.${encodeURIComponent(key)}&expires_at=gt.${new Date().toISOString()}&select=value&limit=1`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+    });
+    if (!response.ok) return null;
+    const rows = await response.json();
+    return rows?.[0]?.value ?? null;
+  } catch { return null; }
+}
+
+async function setSupabaseCache(key: string, value: any): Promise<void> {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return;
+  try {
+    await fetch(`${url}/rest/v1/inventa_ai_cache`, {
+      method: 'POST',
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ cache_key: key, value, expires_at: new Date(Date.now() + CACHE_TTL_MS).toISOString() })
+    });
+  } catch {}
 }
 
 async function generateWithRetry(ai: GoogleGenAI, request: any) {
@@ -15,7 +97,7 @@ async function generateWithRetry(ai: GoogleGenAI, request: any) {
       lastError = error;
       const text = String(error?.message || error?.toString?.() || '');
       if (!/503|429|UNAVAILABLE|high demand|resource exhausted/i.test(text) || attempt === 3) break;
-      await new Promise(resolve => setTimeout(resolve, 600 * (attempt + 1) ** 2));
+      await new Promise(resolve => setTimeout(resolve, 30000));
     }
   }
   throw lastError;
@@ -62,17 +144,18 @@ export default async function handler(req: any, res: any) {
   }
 
   const endpoint = String(req.query.endpoint || '').replace(/^\/+/, '').split(/[/?]/)[0] || 'generate';
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  if (!apiKey) {
+  if (!groqKey && !geminiKey) {
     jsonResponse(res, 503, {
-      error: 'AI service is not configured. Add GEMINI_API_KEY to the Vercel project environment variables and redeploy.'
+      error: 'AI service is not configured. Add GROQ_API_KEY or GEMINI_API_KEY to Vercel environment variables and redeploy.'
     });
     return;
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = geminiKey ? new GoogleGenAI({ apiKey: geminiKey }) : null;
 
     if (endpoint === 'generate') {
       const { problem, category, inventionType, complexity, imageDataUrl } = req.body || {};
@@ -115,13 +198,24 @@ Make concepts directly specific to the stated problem. Do not return generic tem
       }
       parts.push({ text: prompt });
 
-      const response = await generateWithRetry(ai, {
-        model: MODEL,
-        contents: parts.length > 1 ? { parts } : prompt,
-        config: { responseMimeType: 'application/json', temperature: 0.7 }
-      });
+      let inventions: any[];
+      try {
+        const groqText = await callGroq([
+          { role: 'system', content: 'You are INVENTA invention architect. Return valid JSON with an inventions array. Make every concept specific to the problem.' },
+          { role: 'user', content: prompt }
+        ], true);
+        const parsed = extractJson(groqText);
+        inventions = Array.isArray(parsed) ? parsed : parsed.inventions;
+      } catch {
+        if (!ai) throw new Error('Groq is unavailable and Gemini fallback is not configured.');
+        const response = await generateWithRetry(ai, {
+          model: GEMINI_MODEL,
+          contents: parts.length > 1 ? { parts } : prompt,
+          config: { responseMimeType: 'application/json', temperature: 0.7 }
+        });
+        inventions = extractJson(response.text || '');
+      }
 
-      const inventions = extractJson(response.text || '');
       if (!Array.isArray(inventions) || inventions.length !== 3) {
         throw new Error('The AI returned an invalid invention list. Please try again.');
       }
@@ -151,12 +245,23 @@ Original invention: ${JSON.stringify(invention)}
 Refinement goal: ${refinementGoal}
 Target country/region: ${country || 'Worldwide'}
 Return only valid JSON with: refinementTitle, summaryOfChanges, revisedMaterials, revisedCostRange, newTradeOffs, updatedPrototypeSteps, regionalAdaptationNotes.`;
-      const response = await generateWithRetry(ai, {
-        model: MODEL,
-        contents: prompt,
-        config: { responseMimeType: 'application/json', temperature: 0.5 }
-      });
-      jsonResponse(res, 200, { refinement: extractJson(response.text || '{}'), isGeneratedByAi: true });
+      let refinement: any;
+      try {
+        const groqText = await callGroq([
+          { role: 'system', content: 'You are INVENTA refinement engine. Return only valid JSON matching the requested refinement schema.' },
+          { role: 'user', content: prompt }
+        ], true);
+        refinement = extractJson(groqText);
+      } catch {
+        if (!ai) throw new Error('Groq is unavailable and Gemini fallback is not configured.');
+        const response = await generateWithRetry(ai, {
+          model: GEMINI_MODEL,
+          contents: prompt,
+          config: { responseMimeType: 'application/json', temperature: 0.5 }
+        });
+        refinement = extractJson(response.text || '{}');
+      }
+      jsonResponse(res, 200, { refinement, isGeneratedByAi: true });
       return;
     }
 
@@ -182,19 +287,54 @@ Return only valid JSON with: refinementTitle, summaryOfChanges, revisedMaterials
       const context = selectedInvention
         ? `Selected INVENTA invention: ${JSON.stringify(selectedInvention)}`
         : 'No invention is currently selected.';
-      const response = await generateWithRetry(ai, {
-        model: MODEL,
-        contents: validContents,
-        config: {
-          temperature: 0.6,
-          systemInstruction: `You are INVENTA's engineering assistant. Answer the user's question directly using practical, scientifically grounded invention and prototyping advice. ${context}`
-        }
-      });
+      const lastUser = validContents.filter((item: any) => item.role === 'user').at(-1)?.parts?.[0]?.text || 'engineering question';
+      const cacheKey = `assistant:${selectedInvention?.id || 'general'}:${lastUser.trim().toLowerCase()}`;
+      const cached = responseCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        jsonResponse(res, 200, { ...cached.value, isCached: true });
+        return;
+      }
+      const persistentCached = await getSupabaseCache(cacheKey);
+      if (persistentCached) {
+        responseCache.set(cacheKey, { value: persistentCached, expiresAt: Date.now() + CACHE_TTL_MS });
+        jsonResponse(res, 200, { ...persistentCached, isCached: true });
+        return;
+      }
 
-      jsonResponse(res, 200, {
-        reply: response.text || 'I am ready to help with your invention workflow.',
-        isGeneratedByAi: true
-      });
+      try {
+        const groqMessages = [
+          { role: 'system', content: `You are INVENTA's engineering assistant. Answer directly with practical, scientifically grounded invention and prototyping advice. Never fabricate verification. ${context}` },
+          ...validContents.map((item: any) => ({ role: item.role === 'model' ? 'assistant' : 'user', content: item.parts[0].text }))
+        ];
+        const reply = await callGroq(groqMessages);
+        const result = { reply, isGeneratedByAi: true, provider: 'groq' };
+        responseCache.set(cacheKey, { value: result, expiresAt: Date.now() + CACHE_TTL_MS });
+        await setSupabaseCache(cacheKey, result);
+        jsonResponse(res, 200, result);
+      } catch {
+        if (ai) {
+          try {
+            const response = await generateWithRetry(ai, {
+              model: GEMINI_MODEL,
+              contents: validContents,
+              config: { temperature: 0.6, systemInstruction: `You are INVENTA's engineering assistant. Answer directly with practical, scientifically grounded invention advice. ${context}` }
+            });
+            const result = { reply: response.text || 'I am ready to help.', isGeneratedByAi: true, provider: 'gemini' };
+            responseCache.set(cacheKey, { value: result, expiresAt: Date.now() + CACHE_TTL_MS });
+            await setSupabaseCache(cacheKey, result);
+            jsonResponse(res, 200, result);
+          } catch {
+            const reply = localEngineeringFallback(lastUser);
+            const result = { reply, isGeneratedByAi: false, provider: 'local', notice: 'The AI providers are temporarily unavailable; showing INVENTA engineering guidance.' };
+            responseCache.set(cacheKey, { value: result, expiresAt: Date.now() + CACHE_TTL_MS });
+            await setSupabaseCache(cacheKey, result);
+            jsonResponse(res, 200, result);
+          }
+        } else {
+          const reply = localEngineeringFallback(lastUser);
+          jsonResponse(res, 200, { reply, isGeneratedByAi: false, provider: 'local' });
+        }
+      }
       return;
     }
 

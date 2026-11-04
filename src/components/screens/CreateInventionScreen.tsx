@@ -558,7 +558,7 @@ export const CreateInventionScreen: React.FC<CreateInventionScreenProps> = ({
                 Laboratory Synthesis Blueprint
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Confirm problem parameters before executing the Gemini 3.8 Flash synthesis engine.
+                Confirm problem parameters before executing the Groq synthesis engine with Gemini fallback.
               </p>
             </div>
 

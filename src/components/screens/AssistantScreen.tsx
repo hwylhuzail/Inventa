@@ -137,7 +137,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({
                 AI Invention Assistant
               </h2>
               <span className="text-[10px] text-cyan-400 font-mono font-semibold">
-                ENGINEERING MENTOR · GEMINI 3.8 FLASH
+                ENGINEERING MENTOR · GROQ / GEMINI
               </span>
             </div>
           </div>
@@ -211,7 +211,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({
         {isLoading && (
           <div className="flex items-center gap-2 text-xs text-slate-400 p-3 bg-[#0F172A] rounded-2xl border border-white/[0.06] w-fit">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-            <span>Consulting physics & prototyping principles...</span>
+            <span>Inventa is thinking... high traffic, retrying in 10s</span>
           </div>
         )}
 

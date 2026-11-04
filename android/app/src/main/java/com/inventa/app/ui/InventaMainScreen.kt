@@ -237,7 +237,7 @@ fun HomeSectionView(onCreateClick: () -> Unit, savedCount: Int) {
             )
             MetricCard(
                 title = "Engine",
-                value = "Gemini 3.8",
+                value = "Groq AI",
                 modifier = Modifier.weight(1f)
             )
         }

@@ -117,7 +117,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   Cloud AI Synthesis Consent
                 </span>
                 <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
-                  Allows problem descriptions to be transmitted to Google Gemini 3.8 Flash for invention synthesis. Personal IDs and email are never sent.
+                  Allows problem descriptions to be transmitted to Groq AI for invention synthesis, with Google Gemini fallback. Personal IDs and email are never sent.
                 </p>
               </div>
             </div>

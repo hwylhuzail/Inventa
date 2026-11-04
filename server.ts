@@ -287,7 +287,7 @@ Synthesize 3 distinct, practical, innovative solutions with complete prototype r
     parts.push({ text: promptText });
 
     const response = await aiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-1.5-flash-8b',
       contents: parts.length > 1 ? { parts } : promptText,
       config: {
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -511,7 +511,7 @@ Return clean JSON with:
 }`;
 
     const response = await aiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-1.5-flash-8b',
       contents: prompt,
       config: {
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -603,7 +603,7 @@ Guiding Principles:
     }
 
     const response = await aiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-1.5-flash-8b',
       contents: validContents,
       config: {
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },

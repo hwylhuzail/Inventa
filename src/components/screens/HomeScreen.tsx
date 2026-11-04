@@ -66,7 +66,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#131B2E] border border-white/[0.08] text-xs font-medium text-slate-300 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-cyan-400" />
-          <span className="font-mono text-[11px]">Gemini 3.8 Ready</span>
+          <span className="font-mono text-[11px]">Groq AI Ready</span>
         </div>
       </div>
 
